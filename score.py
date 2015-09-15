@@ -386,7 +386,13 @@ def score(cards):
 	result["scorestr"] = scorestr
 	result["hand_name"] = hand_name
 
-	print json.dumps(result)
+	return json.dumps(result)
+
+def api_main(cards):
+	cards_list = json.loads(cards)
+	sorted_cards_list = sorted(cards_list, key = lambda x: x["value"])
+
+	score(sorted_cards_list)
 
 def main(argv):
 
@@ -394,7 +400,8 @@ def main(argv):
 		opts, args = getopt.getopt(argv, "c:", ["cards="])
 
 		cards_list = json.loads(opts[0][1])
-		sorted_cards_list = sorted(cards_list, key=lambda x: x['value'])	#sort it
+		sorted_cards_list = sorted(cards_list, key = lambda x: x["value"])	#sort it
+
 		score(sorted_cards_list)
 
 	except getopt.GetoptError:
