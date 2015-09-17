@@ -14,13 +14,13 @@
             $('form').submit(function(e) {
                 e.preventDefault();
                 $.ajax({
-                    url: "http://localhost:8000",
+                    url: "http://localhost:8080/register",
                     type: "post",
                     data: {
                         "var1": "value1"
                     },
-                    success: function() {
-                        console.log("success");
+                    success: function(data) {
+                        console.log(data);
                     },
                     error: function(error) {
                         console.log(error);
