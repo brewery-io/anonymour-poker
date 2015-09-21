@@ -7,6 +7,8 @@
     </head>
     <body >
         <form >
+            <input type="text" name="username" placeholder="username" />
+            <input type="password" name="password" placeholder="password" />
             <input type="submit" value="submit" />
         </form>
 
@@ -17,7 +19,8 @@
                     url: "http://localhost:8080/register",
                     type: "post",
                     data: {
-                        "var1": "value1"
+                        "username": $("input[name='username']").val(),
+                        "password": $("input[name='password']").val()
                     },
                     success: function(data) {
                         console.log(data);
