@@ -98,7 +98,7 @@ class register:
         if user != ():
             return write({"error": "Username already exists. "}, 211)
 
-        inserted = db.insert("users", {"username": db.escape(username), "password": password_hash, "balance": 0})
+        inserted = db.insert("users", {"username": db.escape(username), "password": password_hash, "permissions": "{\"Standard\": 1, \"Admin\": 0}", "balance": 0})
 
         if inserted:
             return write({"message": "Successfully registered %s. " % username}, 200)
