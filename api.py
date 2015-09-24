@@ -6,6 +6,15 @@ import json
 from config import Config
 import pysqlw
 import hashlib
+import os
+
+db = pysqlw.pysqlw(**{
+    "db_type": Config.db_type,
+    "db_host": Config.db_host,
+    "db_user": Config.db_user,
+    "db_pass": Config.db_pass,
+    "db_name": Config.db_name
+})
 
 urls = (
     "/register", "register",
@@ -38,16 +47,36 @@ class login:
     def POST(self):
         new_request(self)
         data = web.input()
-        username = data["username"]
-        password = data["password"]
+        if data["username"] and data["password"]:
+            username = data["username"]
+            password = data["password"]
+            password_hash = hashlib.sha224(password).hexdigest()
+        else:
+            return write({"error": "Username or password can't be empty. "}, 210)
+
+        hash = os.urandom(32).encode("hex")
+
+        user = db.where("username", db.escape(username)).get("users")
+
+        if user == ():
+            return write({"error": "Username not found. "}, 211)
+        elif user[0]["password"] == password_hash:
+            db.insert("users_sessions", {"user_id": user[0]["id"], "hash": hash})
+            return write({"message": "Successfully logged in. ", "hash": hash}, 200)
+        else:
+            return write({"error": "Password was incorrect. "}, 211)
+
 
 class register:
     def POST(self):
         new_request(self)
         data = web.input()
-        username = data["username"]
-        password = data["password"]
-        password_hash = hashlib.sha224(password).hexdigest()
+        if data["username"] and data["password"]:
+            username = data["username"]
+            password = data["password"]
+            password_hash = hashlib.sha224(password).hexdigest()
+        else:
+            return write({"error": "Username or password can't be empty. "}, 210)
 
         try:
             username.decode("utf-8")
@@ -64,22 +93,12 @@ class register:
         elif username == "" or password == "":
             return write({"error": "Username or password can not be empty. "}, 210)
 
-        db = pysqlw.pysqlw(**{
-            "db_type": Config.db_type,
-            "db_host": Config.db_host,
-            "db_user": Config.db_user,
-            "db_pass": Config.db_pass,
-            "db_name": Config.db_name
-        })
-
         user = db.where("username", db.escape(username)).get("users")
 
         if user != ():
             return write({"error": "Username already exists. "}, 211)
 
         inserted = db.insert("users", {"username": db.escape(username), "password": password_hash, "balance": 0})
-
-        db.close()
 
         if inserted:
             return write({"message": "Successfully registered %s. " % username}, 200)
@@ -90,3 +109,4 @@ if __name__ == "__main__":
     app = web.application(urls, globals())
     app.notfound = notfound
     app.run()
+    db.close()
