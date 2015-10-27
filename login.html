@@ -4,6 +4,7 @@
     <head >
         <title >anon poker</title>
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js" ></script>
+        <script src="res/js/js.cookie.js" ></script>
     </head>
     <body >
         <form class="login" >
@@ -12,18 +13,51 @@
             <input type="password" name="password" placeholder="password" />
             <input type="submit" value="submit" />
         </form>
+        <form class="register" >
+            Register
+            <input type="text" name="username" placeholder="username" />
+            <input type="password" name="password" placeholder="password" />
+            <input type="submit" value="submit" />
+        </form>
+        <script >
+            $('.register').submit(function(e) {
+                e.preventDefault();
+                $.ajax({
+                    url: "http://localhost:8080/user/register",
+                    type: "post",
+                    data: {
+                        "username": $(".register input[name='username']").val(),
+                        "password": $(".register input[name='password']").val()
+                    },
+                    success: function(data) {
+                        if (data["status"] == 200) {
+                            alert("success");
+                        }
+                    },
+                    error: function(error) {
+                        console.log(error);
+                    }
+                });
+            });
+        </script>
         <script >
             $('.login').submit(function(e) {
                 e.preventDefault();
                 $.ajax({
-                    url: "http://localhost:8080/login",
+                    url: "http://localhost:8080/user/login",
                     type: "post",
                     data: {
                         "username": $(".login input[name='username']").val(),
                         "password": $(".login input[name='password']").val()
                     },
                     success: function(data) {
-                        console.log(data);
+                        if (data["status"] == 200) {
+                            Cookies.set("hash", data["payload"]["hash"]);
+                            window.location.href = "home.html";
+                        }
+                        else {
+                            alert(data["payload"]["error"]);
+                        }
                     },
                     error: function(error) {
                         console.log(error);

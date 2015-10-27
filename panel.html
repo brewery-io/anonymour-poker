@@ -1,0 +1,57 @@
+<!DOCTYPE html >
+
+<html >
+    <head >
+        <title >Control Panel</title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js" ></script>
+        <script src="res/js/js.cookie.js" ></script>
+        <script src="res/js/loggedin.js" ></script>
+    </head>
+    <body >
+        <form class="create_room" >
+            <input type="text" name="name" />
+            <input type="submit" />
+        </form>
+        <form class="test" >
+            <input type="text" name="test" placeholder="test" />
+            <input type="submit" />
+        </form>
+        <script >
+            $('.test').submit(function(e) {
+                e.preventDefault();
+                $.ajax({
+                    url: "http://localhost:8080/game/start",
+                    type: "post",
+                    data: {
+                        "test": $(".test input[type='text']").val()
+                    },
+                    success: function(data) {
+                        console.log(data);
+                    },
+                    error: function(error) {
+                        console.log(error);
+                    }
+                });
+            });
+        </script>
+        <script >
+            $('.create_room').submit(function(e) {
+                e.preventDefault();
+                $.ajax({
+                    url: "http://localhost:8080/room/create",
+                    type: "post",
+                    data: {
+                        "hash": Cookies.get("hash"),
+                        "name": $(".create_room input[type='text']").val()
+                    },
+                    success: function(data) {
+                        console.log(data);
+                    },
+                    error: function(error) {
+                        console.log(error);
+                    }
+                });
+            });
+        </script>
+    </body>
+</html>
