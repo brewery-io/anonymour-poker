@@ -6,7 +6,7 @@ import json
 from config import conf
 import hashlib
 import os
-from simplemysql import SimpleMysql
+import pysqlw
 
 #########################################################
 #
@@ -17,16 +17,13 @@ from simplemysql import SimpleMysql
 urls = (
 	"/user/register", "user_register",
 	"/user/login", "user_login",
-	"/room/create", "room_create"
+	"/room/create", "room_create",
+
+	"/game/join", "game_join",
+	"/game/leave", "game_leave"
 )
 
-mysql = SimpleMysql(
-	host = conf.db_host,
-	user = conf.db_user,
-	passwd = conf.db_pass,
-	db = conf.db_name,
-	keep_alive = False
-)
+db = pysqlw.pysqlw(db_type="sqlite", db_path="db.db")
 
 # mongo_client = MongoClient("localhost", 27017)
 # mongo_db = mongo_client["poker"]
@@ -56,19 +53,90 @@ def new_request(request):
 	# request_info["time"] = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
 	# request_id = requests.insert_one(request_info).inserted_id
 
+def get_user(sesh):
+
+	user_session = db.where("sesh", sesh).get("user_sessions")
+
+	if len(user_session) == 0:
+		return None
+
+	return db.where("id", user_session[0]["user_id"]).get("users")
+
 #########################################################
 #
 #               GAME CLASSES
 #
 #########################################################
 
-class game_start:
+class game_join:
 	def POST(self):
 		new_request(self)
 		data = web.input()
-		print "first print"
-		time.sleep(10)
-		print "second print"
+
+		try:
+			sesh = data["sesh"].decode("utf-8")
+			room_id = data["room_id"].decode("utf-8")
+		except KeyError:
+			return write({"error": "Sesh and room id can't be empty. "}, 400)
+		except UnicodeError:
+			return write({"error": "Sesh and room id must be UTF-8 encoded. "}, 400)
+
+		game = db.where("room_id", room_id).where("status", "open").get("games")
+		room = db.where("id", room_id).get("rooms")
+		user = get_user(sesh)
+
+		if user is None:
+			return write({"error": "User not logged in. "}, 401)
+
+		if len(game) == 0:
+			return write({"error": "Game isn't open or doesn't exist. "}, 403)
+
+		if db.where("game_id", game[0]["id"]).update("games", {"user_ids", "%s,%s" % (game[0]["user_ids"], user[0]["id"])}):
+			db.insert("log", {"user_id", user[0]["id"], "action": "join", "value": game[0]["id"]})
+
+			if len(game[0]["user_ids"].split(",")) == room[0]["max_players"]:
+				db.where("game_id", game[0]["id"]).update("games", {"status": "started"})
+				pass
+				#start game proc
+
+			return write({"message": "Joined game. "}, 200)
+		else:
+			return write({"error": "Error joining game. "}, 500)
+
+class game_leave:
+	def POST(self):
+		new_request(self)
+		data = web.input()
+
+		try:
+			sesh = data["sesh"].decode("utf-8")
+			room_id = data["room_id"].decode("utf-8")
+		except KeyError:
+			return write({"error": "Sesh and room id can't be empty. "}, 400)
+		except UnicodeError:
+			return write({"error": "Sesh and room id must be UTF-8 encoded. "}, 400)
+
+		game = db.where("room_id", room_id).where("status", "open").get("games")
+
+		user = get_user(sesh)
+
+		if user is None:
+			return write({"error": "User not logged in. "}, 401)
+
+		if len(game) == 0:
+			game = db.where("room_id", room_id).where("status", "started").get("games")
+			if len(game) == 0:
+				return write({"error": "You're not in this game. "}, 400)
+
+		userlist = game[0]["user_ids"].split(",")
+		userlist = userlist.pop(user[0]["id"])
+		newlist = ",".join(userlist)
+
+		if db.where("id", game[0]["id"]).update("user_ids", newlist):
+			return write({"message": "Successfuly left room. "}, 200)
+		else:
+			return write({"error": "Couldn't leave room. "}, 500)
+
 
 #########################################################
 #
@@ -80,36 +148,42 @@ class room_create:
 	def POST(self):
 		new_request(self)
 		data = web.input()
-		if data["hash"]:
-			shash = data["hash"]
 
-		user_session = mysql_db.where("hash", mysql_db.escape(shash)).get("user_sessions")
+		try:
+			sesh = data["sesh"].decode("utf-8")
+		except KeyError:
+			return write({"error": "Sesh can't be empty. "}, 400)
+		except UnicodeError:
+			return write({"error": "Sesh not UTF-8 encoded. "}, 400)
 
-		if user_session == ():
-			return write({"error": "Session doesn't exist ."}, 211)
+		user_session = db.where("sesh", sesh).get("user_sessions")
+
+		if len(user_session) == 0:
+			return write({"error": "Session doesn't exist. "}, 401)
 		else:
-			user = mysql_db.where("id", user_session[0]["user_id"]).get("users")
+			user = db.where("id", user_session[0]["user_id"]).get("users")
+			print user[0]["permissions"]
 			permissions = json.loads(user[0]["permissions"])
 			if permissions["Admin"] == 1:
-				if data["name"] and data["max_players"] and data["buyin"]:
-					name = mysql_db.escape(data["name"])
-					max_players = mysql_db.escape(data["max_players"])
-					buyin = mysql_db.escape(data["buyin"])
-					inserted = mysql_db.insert("rooms", {"name": name, "max_players": max_players, "buyin": buyin})
-					room = {
-						"name": name,
-						"max_players": max_players,
-						"buyin": buyin
-					}
-					room_id = rooms_doc.insert_one()
-					if inserted:
-						return write({"message": "Room created successfully. "}, 200)
-					else:
-						return write({"error": "Error inserting into database. "}, 212)
+				try:
+					name = data["name"].decode("utf-8")
+					max_players = data["max_players"].decode("utf-8")
+					buyin = data["buyin"].decode("utf-8")
+				except KeyError:
+					return write({"error": "Fields can't be empty. "}, 400)
+				except UnicodeError:
+					return write({"error": "Fields not UTF-8 encoded. "}, 400)
+				try:
+					buyin = int(buyin)
+					max_players = int(max_players)
+				except ValueError:
+					return write({"error": "Buyin and max players must be numbers. "}, 400)
+				if db.insert("rooms", {"name": name, "buyin": buyin, "max_players": max_players}):
+					return write({"message": "Created room. "}, 200)
 				else:
-					return write({"error": "Name not supplied. "}, 210)
+					return write({"error": "Error inserting into database. "}, 500)
 			else:
-				return write({"error": "You don't have permission to do this. "}, 211)
+				return write({"error": "You don't have permission to do this. "}, 403)
 
 #########################################################
 #
@@ -132,15 +206,14 @@ class user_login:
 
 		shash = os.urandom(64).encode("hex")
 
-		user = mysql.getOne("users", ["id", "password"])
+		user = db.where("username", username).get("users")
 
-		if user is None:
+		if len(user) == 0:
 			return write({"error": "Username not found. "}, 400)
-		elif user.password == password_hash:
-			try:
-				mysql.insert("user_sessions", {"user_id": user.id, "hash": shash})
-				return write({"message": "Successfully logged in. ", "hash": shash}, 200)
-			except:
+		elif user[0]["password"] == password_hash:
+			if db.insert("user_sessions", {"user_id": user[0]["id"], "sesh": sesh}):
+				return write({"message": "Successfully logged in. ", "sesh": sesh}, 200)
+			else:
 				return write({"error": "Error inserting into database. "}, 500)
 		else:
 			return write({"error": "Password was incorrect. "}, 400)
@@ -168,16 +241,12 @@ class user_register:
 		elif username == "" or password == "":
 			return write({"error": "Username or password can not be empty. "}, 400)
 
-		user = mysql.getOne("users", ["id"], ["username = '%s'" % username])
-
-		if user is not None:
+		if len(db.where("username", username).get("users")) > 0:
 			return write({"error": "Username already exists. "}, 400)
 
-		try:
-			x = mysql.insert("users", {"username": username, "password": password_hash, "balance": 0, "permissions": "{\"Standard\": 1, \"Admin\": 0}"})
-			print x
+		if db.insert("users", {"username": username, "password": password_hash, "balance": 0, "permissions": "perms"}):
 			return write({"message": "Successfully registered %s. " % username}, 200)
-		except:
+		else:
 			return write({"error": "Error inserting into database. "}, 500)
 
 
@@ -188,6 +257,7 @@ class user_register:
 #########################################################
 
 if __name__ == "__main__":
+	db.close()
 	app = web.application(urls, globals())
 	app.notfound = notfound
 	app.run()
