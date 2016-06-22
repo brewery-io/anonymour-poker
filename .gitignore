@@ -4,3 +4,4 @@ config.py
 config.pyc
 smysql.*
 *.db
+jquery.js
