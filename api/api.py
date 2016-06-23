@@ -6,6 +6,7 @@ from config import conf
 import hashlib
 import os
 import pg_simple as pg
+from random import randint
 
 #########################################################
 #
@@ -22,7 +23,9 @@ urls = (
 	"/room/list", "room_list",
 	"/room/join", "room_join",
 	"/room/leave", "room_leave",
-	"/room/status", "room_status"
+	"/room/status", "room_status",
+
+	"/game/state", "game_state"
 
 )
 
@@ -66,6 +69,25 @@ def get_user(sesh=None, username=None):
 
 		return user
 
+def deal(used, amount):
+
+	f = open("inc/deck.json")
+	deck = json.loads(f.read())
+	f.close()
+
+	used_cards = json.loads(used)
+
+	for used_card in used_cards:
+		deck.pop(used_card)
+
+	result = []
+
+
+	for i in xrange(amount):
+		result.append(deck.pop(randint(0, len(deck))))
+
+	return result
+
 #########################################################
 #
 #               GAME CLASSES
@@ -73,12 +95,47 @@ def get_user(sesh=None, username=None):
 #########################################################
 
 
-class game_update:
+class game_state:
 	def POST(self):
 		new_request(self)
 		data = web.input()
 
-		return
+		try:
+			sesh = data["sesh"].decode("utf-8")
+			state_id = data["game_state"].decode("utf-8")
+			game_id = data["game_id"].decode("utf-8")
+		except KeyError:
+			return write({"error": "Data can't be empty. "}, 400)
+		except UnicodeError:
+			return write({"error": "Data must be UTF-8 encoded. "}, 400)
+
+		with pg.PgSimple() as db:
+			game_state = db.fetchone("game_states", where=("game_id = %s", [game_id]))
+
+			if game_state.id > state_id:
+
+				user = get_user(sesh=sesh)
+
+				if user is None:
+					return write({"error": "User doesn't exist. "}, 400)
+
+				game = db.fetchone("games", where=("id = %s AND status = %s", [game_id, "running"]))
+
+				if game is None:
+					return write({"error": "The game doesn't exist. "}, 404)
+
+				user_ids = game.user_ids.split(",")
+
+				if user.id not in user_ids:
+					return write({"error": "You are not in this game. "}, 403)
+
+				# return stuff pertinent to user here !
+
+
+			return write({"message": "State hasn't changed. ", "changed": False}, 200)
+
+
+
 
 
 #########################################################
@@ -182,14 +239,46 @@ class room_join:
 					user_ids.append(u.id)
 					user_ids.append(user.id)
 				if len(users_in_room) == room.max_players - 1:
-					try:
-						db.update("rooms", where=("id = %s", [room_id]), data={"status": "ingame"})
-						db.update("users", where=("id = %s", [user.id]), data={"room_id": room_id})
-						game_id = db.insert("games", {"room_id": room_id, "user_ids": ",".join(str(v) for v in user_ids), "status": "running"}, returning="id")
-						db.commit()
-						return write({"message": "Joined room %s and started game. " % room.name, "game_id": game_id, "room_id": room_id, "started": True}, 200)
-					except Exception:
-						return write({"error": "Error joining room. "}, 500)
+					#try:
+					room = db.update("rooms", where=("id = %s", [room_id]), data={"status": "ingame"}, returning="max_players")
+					db.update("users", where=("id = %s", [user.id]), data={"room_id": room_id})
+
+					game_id = db.insert("games", {"room_id": room_id, "user_ids": ",".join(str(v) for v in user_ids), "status": "running"}, returning="id")
+
+					to_deal = deal("[]", 3 + room[0].max_players)
+
+					print to_deal
+
+					community = []
+
+					community.extend([to_deal.pop(), to_deal.pop(), to_deal.pop()])
+
+					holes = {}
+					money = {}
+
+					for user_id in user_ids:
+						holes[int(user_id)] = to_deal.pop()
+						money[int(user_id)] = 1000
+
+					game_state = db.insert("game_states", {"game_id": game_id,\
+					 									"user_ids": ",".join(str(v) for v in user_ids),\
+														"state": "flop",\
+														"community": json.dumps(community),\
+														"holes": json.dumps(holes),\
+														"big": 50,\
+														"small": 25,\
+														"bets": "{}",\
+														"actions": "{}",\
+														"pot": 75,\
+														"round": 1,\
+														"turn": "1",\
+														"money": json.dumps(money)}, \
+														returning="id")
+
+					db.commit()
+					return write({"message": "Joined room and started game. ", "game_id": game_id, "room_id": room_id, "started": True}, 200)
+					#except Exception:
+					#	return write({"error": "Error joining room. "}, 500)
 
 				try:
 					db.update("users", where=("id = %s", [user.id]), data={"room_id": room_id})
@@ -238,6 +327,8 @@ class room_status:
 
 		try:
 			room_id = data["room_id"].decode("utf-8")
+			if room_id == "":
+				return write({"error": "Room id can't be empty. "}, 400)
 		except KeyError:
 			return write({"error": "Room id can't be empty. "}, 400)
 		except UnicodeError:
