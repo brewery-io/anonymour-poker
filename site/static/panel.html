@@ -3,8 +3,7 @@
 <html >
 	<head >
 		<title >Control Panel</title>
-		<script src="/static/res/js/jquery.js" ></script>
-		<script src="/static/res/js/js.cookie.js" ></script>
+		<script src="/static/res/js/lib/jquery.js" ></script>
 		<script src="/static/res/js/loggedin.js" ></script>
 	</head>
 	<body >
@@ -14,26 +13,6 @@
 			<input type="number" name="buyin" />
 			<input type="submit" />
 		</form>
-		<script >
-			$('.create_room').submit(function(e) {
-				e.preventDefault();
-				$.ajax({
-					url: "http://localhost:8080/room/create",
-					type: "post",
-					data: {
-						"sesh": Cookies.get("sesh"),
-						"name": $(".create_room input[name='name']").val(),
-						"max_players": $(".create_room input[name='max_players']").val(),
-						"buyin": $(".create_room input[name='buyin']").val()
-					},
-					success: function(data) {
-						console.log(data);
-					},
-					error: function(error) {
-						console.log(error);
-					}
-				});
-			});
-		</script>
+		<script src="/static/res/js/panel.actions.js" ></script>
 	</body>
 </html>

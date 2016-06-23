@@ -1,7 +1,8 @@
 .DS_STORE
+
+
 *.pyc
 config.py
 config.pyc
-smysql.*
-*.db
-jquery.js
+
+lib/

@@ -1,5 +1,3 @@
-if (!Cookies.get("sesh")) {
+if (localStorage.getItem("sesh") === null) {
     window.location.href = "/login";
-} else {
-    // window.location.href = "home.html";
 }

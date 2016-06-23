@@ -3,11 +3,13 @@
 <html >
 	<head >
 		<title >anon poker</title>
-		<script src="/static/res/js/jquery.js" ></script>
-		<script src="/static/res/js/js.cookie.js" ></script>
+		<script src="/static/res/js/lib/jquery.js" ></script>
 		<script src="/static/res/js/loggedin.js" ></script>
 	</head>
 	<body >
+		<div class="logout_btn" >
+			logout
+		</div>
 		<table class="roomslist">
 			<tr >
 				<td >
@@ -24,58 +26,7 @@
 				</td>
 			</tr>
 		</table>
-		<script >
-			$.ajax({
-				url: "http://localhost:8080/room/list",
-				method: "post",
-				success: function(data) {
-					if (data["status"] == 200) {
-						for (var i = 0; i < data["payload"]["rooms"].length; i++) {
-							$(".roomslist tr:last").after("<tr class='room' room-id='" + data["payload"]["rooms"][i][0] + "'> \
-								<td > " + data["payload"]["rooms"][i][1] + " \
-								</td> \
-								<td > " + data["payload"]["rooms"][i][2] + " \
-								</td> \
-								<td > " + data["payload"]["rooms"][i][3] + " \
-								</td> \
-								<td > " + data["payload"]["rooms"][i][4] + " \
-								</td> \
-								<tr/>");
-						}
-					} else {
-						//alert(data["payload"]["error"]);
-						console.log(data);
-					}
-				},
-				error: function(error) {
-					console.log(error);
-				}
-			});
-
-			$(document).on("click", ".room", function() {
-				var room_id = $(this).attr("room-id");
-
-				$.ajax({
-					url: "http://localhost:8080/room/join",
-					method: "post",
-					data: {
-						"sesh": Cookies.get("sesh"),
-						"room_id": room_id
-					},
-					success: function(data) {
-						if (data["status"] == 200) {
-							console.log(data);
-						} else {
-							//alert(data["payload"]["error"]);
-							console.log(data);
-						}
-					},
-					error: function(error) {
-						console.log(error);
-					}
-				});
-
-			});
-		</script>
+		<script src="/static/res/js/home.actions.js" ></script>
+		<script src="/static/res/js/home.auto.js" ></script>
 	</body>
 </html>

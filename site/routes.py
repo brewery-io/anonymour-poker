@@ -10,7 +10,9 @@ import os
 urls = (
 	"/", "index",
 	"/login", "login",
-	"/panel", "panel"
+	"/panel", "panel",
+	"/room", "room",
+	"/game", "game"
 )
 
 base = os.path.dirname(os.path.realpath(__file__))
@@ -35,24 +37,32 @@ def new_request(request):
 class index:
 	def GET(self):
 		new_request(self)
-
 		with open("%s/static/home.html" % base, "r") as f:
 			return f.read()
 
 class login:
 	def GET(self):
 		new_request(self)
-
 		with open("%s/static/login.html" % base, "r") as f:
 			return f.read()
 
 class panel:
 	def GET(self):
 		new_request(self)
-
 		with open("%s/static/panel.html" % base, "r") as f:
 			return f.read()
 
+class room:
+	def GET(self):
+		new_request(self)
+		with open("%s/static/room.html" % base, "r") as f:
+			return f.read()
+
+class game:
+	def GET(self):
+		new_request(self)
+		with open("%s/static/game.html" % base, "r") as f:
+			return f.read()
 
 #########################################################
 #

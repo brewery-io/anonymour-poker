@@ -16,14 +16,17 @@ import pg_simple as pg
 urls = (
 	"/user/register", "user_register",
 	"/user/login", "user_login",
+	"/user/logout", "user_logout",
 
 	"/room/create", "room_create",
 	"/room/list", "room_list",
 	"/room/join", "room_join",
+	"/room/leave", "room_leave",
+	"/room/status", "room_status"
+
 )
 
-pg.config_pool(host=conf.db_host, database=conf.db_name, user=conf.db_user, password=conf.db_pass, max_conn=250, expiration=60 )
-
+pg.config_pool(host=conf.db_host, database=conf.db_name, user=conf.db_user, password=conf.db_pass, max_conn=250, expiration=60)
 
 #########################################################
 #
@@ -68,75 +71,14 @@ def get_user(sesh=None, username=None):
 #               GAME CLASSES
 #
 #########################################################
-#
-# class game_join:
-# 	def POST(self):
-# 		new_request(self)
-# 		data = web.input()
-#
-# 		try:
-# 			sesh = data["sesh"].decode("utf-8")
-# 			room_id = data["room_id"].decode("utf-8")
-# 		except KeyError:
-# 			return write({"error": "Sesh and room id can't be empty. "}, 400)
-# 		except UnicodeError:
-# 			return write({"error": "Sesh and room id must be UTF-8 encoded. "}, 400)
-#
-# 		game = db.where("room_id", room_id).where("status", "open").get("games")
-# 		room = db.where("id", room_id).get("rooms")
-# 		user = get_user(sesh)
-#
-# 		if user is None:
-# 			return write({"error": "User not logged in. "}, 401)
-#
-# 		if len(game) == 0:
-# 			return write({"error": "Game isn't open or doesn't exist. "}, 403)
-#
-# 		if db.where("game_id", game[0]["id"]).update("games", {"user_ids", "%s,%s" % (game[0]["user_ids"], user[0]["id"])}):
-# 			db.insert("log", {"user_id": user[0]["id"], "action": "join", "value": game[0]["id"]})
-#
-# 			if len(game[0]["user_ids"].split(",")) == room[0]["max_players"]:
-# 				db.where("game_id", game[0]["id"]).update("games", {"status": "started"})
-# 				pass
-#
-#
-# 			return write({"message": "Joined game. "}, 200)
-# 		else:
-# 			return write({"error": "Error joining game. "}, 500)
 
-class game_leave:
+
+class game_update:
 	def POST(self):
 		new_request(self)
 		data = web.input()
 
-		try:
-			sesh = data["sesh"].decode("utf-8")
-			room_id = data["room_id"].decode("utf-8")
-		except KeyError:
-			return write({"error": "Sesh and room id can't be empty. "}, 400)
-		except UnicodeError:
-			return write({"error": "Sesh and room id must be UTF-8 encoded. "}, 400)
-
-		game = db.where("room_id", room_id).where("status", "open").get("games")
-
-		user = get_user(sesh)
-
-		if user is None:
-			return write({"error": "User not logged in. "}, 401)
-
-		if len(game) == 0:
-			game = db.where("room_id", room_id).where("status", "started").get("games")
-			if len(game) == 0:
-				return write({"error": "You're not in this game. "}, 400)
-
-		userlist = game[0]["user_ids"].split(",")
-		userlist = userlist.pop(user[0]["id"])
-		newlist = ",".join(userlist)
-
-		if db.where("id", game[0]["id"]).update("user_ids", newlist):
-			return write({"message": "Successfuly left room. "}, 200)
-		else:
-			return write({"error": "Couldn't leave room. "}, 500)
+		return
 
 
 #########################################################
@@ -160,7 +102,7 @@ class room_create:
 		user = get_user(sesh=sesh)
 
 		if user is None:
-			return write({"error": "Session doesn't exist. "}, 401)
+			return write({"error": "Session doesn't exist. "}, 404)
 
 		permissions = json.loads(user.permissions)
 		if permissions["Admin"] == 1:
@@ -210,8 +152,6 @@ class room_join:
 		new_request(self)
 		data = web.input()
 
-		print data
-
 		try:
 			sesh = data["sesh"].decode("utf-8")
 			room_id = int(data["room_id"].decode("utf-8"))
@@ -225,7 +165,10 @@ class room_join:
 		user = get_user(sesh=sesh)
 
 		if user is None:
-			return write({"error": "Session doesn't exist. "}, 401)
+			return write({"error": "Session doesn't exist. "}, 404)
+
+		if user.room_id is not None:
+			return write({"error": "Leave the room you're in before joining another one. "}, 400)
 
 		with pg.PgSimple() as db:
 
@@ -234,47 +177,89 @@ class room_join:
 			if room.status == "open":
 				users_in_room = db.fetchall("users", where=("room_id = %s", [room_id]))
 
-				print "room is open"
-
 				user_ids = []
 				for u in users_in_room:
 					user_ids.append(u.id)
 					user_ids.append(user.id)
 				if len(users_in_room) == room.max_players - 1:
-
-					print "one left, will start"
-
-					# try:
-					db.update("rooms", where=("id = %s", [room_id]), data={"status": "ingame"})
-					db.update("users", where=("id = %s", [user.id]), data={"room_id": room_id})
-
-					game_id = db.insert("games", {"room_id": room_id, "user_ids": ",".join(str(v) for v in user_ids), "status": "running"}, returning="id")
-					print "joined game"
-					db.commit()
-					return write({"message": "Joined room %s and started game. " % room.name, "game_id": game_id}, 200)
-					# except Exception as e:
-					# 	print e
-					# 	print dir(e)
-					# 	print "exception error return write({"error": "Error joining room. "}, 500)
+					try:
+						db.update("rooms", where=("id = %s", [room_id]), data={"status": "ingame"})
+						db.update("users", where=("id = %s", [user.id]), data={"room_id": room_id})
+						game_id = db.insert("games", {"room_id": room_id, "user_ids": ",".join(str(v) for v in user_ids), "status": "running"}, returning="id")
+						db.commit()
+						return write({"message": "Joined room %s and started game. " % room.name, "game_id": game_id, "room_id": room_id, "started": True}, 200)
+					except Exception:
+						return write({"error": "Error joining room. "}, 500)
 
 				try:
-
-
 					db.update("users", where=("id = %s", [user.id]), data={"room_id": room_id})
-					# db.insert("games", {"room_id": room_id, "user_ids": ",".join(user_ids), "status": "running"})
-
-					print "joined game"
-
 					db.commit()
-					game = db.fetchone("games", where=("room_id = %s AND status = %s", [room_id, "running"]))
-					return write({"message": "Joined room %s. " % room.name}, 200)
+					return write({"message": "Joined room %s. " % room.name, "started": False, "room_id": room_id}, 200)
 
-				except Exception as e:
-					print e
-					print "exception error"
+				except:
 					return write({"error": "Error joining room. "}, 500)
 
 			return write({"error": "Room is not open. "}, 403)
+
+class room_leave:
+	def POST(self):
+		new_request(self)
+		data = web.input()
+
+		try:
+			sesh = data["sesh"].decode("utf-8")
+		except KeyError:
+			return write({"error": "Sesh can't be empty. "}, 400)
+		except UnicodeError:
+			return write({"error": "Sesh must be UTF-8 encoded. "}, 400)
+
+		user = get_user(sesh=sesh)
+
+		with pg.PgSimple() as db:
+			room = db.fetchone("rooms", where=("id = %s", [user.room_id]))
+
+			if room is None:
+				return write({"error": "You are not in a room. "}, 400)
+
+			if room.status == "open":
+				try:
+					db.update("users", where=("id = %s", [user.id]), data={"room_id": None})
+					db.commit()
+					return write({"message": "Successfully left room. "}, 200)
+				except:
+					return write({"error": "Error leaving room. "}, 500)
+			else:
+				return write({"error": "Room is not open to leave. "}, 400)
+
+class room_status:
+	def POST(self):
+		new_request(self)
+		data = web.input()
+
+		try:
+			room_id = data["room_id"].decode("utf-8")
+		except KeyError:
+			return write({"error": "Room id can't be empty. "}, 400)
+		except UnicodeError:
+			return write({"error": "Room id must be UTF-8 encoded. "}, 400)
+
+		with pg.PgSimple() as db:
+
+			room = db.fetchone("rooms", where=("id = %s", [room_id]))
+
+			if room is None:
+				return write({"error": "Room doesn't exist. "}, 404)
+
+			if room.status == "ingame":
+				game = db.fetchone("games", where=("room_id = %s AND status = %s", [room_id, "running"]))
+				if game is None:
+
+					return write({"error": "Room is in game, but error getting game. "}, 500)
+
+				return write({"message": "Game has started. ", "ingame": True, "game_id": game.id}, 200)
+
+
+			return write({"message": "Game has not started. ", "ingame": False}, 200)
 
 #########################################################
 #
@@ -316,7 +301,6 @@ class user_login:
 		else:
 			return write({"error": "Password was incorrect. "}, 400)
 
-
 class user_register:
 	def POST(self):
 		new_request(self)
@@ -341,8 +325,6 @@ class user_register:
 
 		if get_user(username=username) is not None:
 			return write({"error": "Username already exists. "}, 400)
-		# if db.insert("users", {"username": username, "password": password_hash, "balance": 0, "permissions": "perms"}):
-		# 	return write({"message": "Successfully registered %s. " % username}, 200)
 		try:
 			with pg.PgSimple() as db:
 				if db.insert("users", data={"username": username, "password": password_hash, "credits": 0, "permissions": "{\"Admin\": 0, \"Standard\": 1}"}) == 1:
@@ -352,10 +334,30 @@ class user_register:
 		except:
 			return write({"error": "Error inserting into database. "}, 500)
 
-		# else:
-		# 	return write({"error": "Error inserting into database. "}, 500)
+class user_logout:
+	def POST(self):
+		new_request(self)
+		data = web.input()
 
+		try:
+			sesh = data["sesh"].decode("utf-8")
+		except KeyError:
+			return write({"error": "Sesh can't be empty. "}, 400)
+		except UnicodeError:
+			return write({"error": "Sesh not UTF-8 encoded. "}, 400)
 
+		user = get_user(sesh=sesh)
+
+		if user is None:
+			return write({"error": "Session doesn't exist. "}, 404)
+
+		try:
+			with pg.PgSimple() as db:
+				db.delete("user_sessions", where=("user_id = %s", [user.id]))
+				db.commit()
+				return write({"message": "Successfully logged out. "}, 200)
+		except:
+			return write({"error": "Error logging out. "}, 500)
 #########################################################
 #
 #               INIT STATEMENTS
@@ -363,6 +365,9 @@ class user_register:
 #########################################################
 
 if __name__ == "__main__":
-	app = web.application(urls, globals())
-	app.notfound = notfound
-	app.run()
+	try:
+		app = web.application(urls, globals())
+		app.notfound = notfound
+		app.run()
+	except KeyboardInterrupt:
+		print "Closed. "
