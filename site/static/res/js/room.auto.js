@@ -9,6 +9,7 @@ setInterval(function() {
 			if (data["status"] == 200) {
 				if (data["payload"]["ingame"]) {
 					localStorage.setItem("game_id", data["payload"]["game_id"]);
+					localStorage.setItem("state_id", 0);
 					//location.href="/game";
 					window.location = "/game"
 				}

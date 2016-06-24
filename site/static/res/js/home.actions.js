@@ -12,6 +12,8 @@ $(document).on("click", ".room", function() {
 			if (data["status"] == 200) {
 				localStorage.setItem("room_id", data["payload"]["room_id"]);
 				if (data["payload"]["started"]) {
+					localStorage.setItem("game_id", data["payload"]["game_id"]);
+					localStorage.setItem("state_id", 0);
 					window.location="/game"
 				} else {
 					window.location="/room"
