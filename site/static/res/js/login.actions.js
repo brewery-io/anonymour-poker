@@ -29,6 +29,7 @@ $('.login').submit(function(e) {
 		success: function(data) {
 			if (data["status"] == 200) {
 				localStorage.setItem("sesh", data["payload"]["sesh"]);
+				localStorage.setItem("user_id", data["payload"]["user_id"]);
 				window.location = "/";
 			}
 			else {

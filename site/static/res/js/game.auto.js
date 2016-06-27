@@ -1,4 +1,6 @@
-setInterval(function() {
+localStorage.setItem("state_id", 0);
+
+var update_state = function() {
 	$.ajax({
 		method: "post",
 		url: "http://localhost:8080/game/state",
@@ -18,8 +20,32 @@ setInterval(function() {
 					}
 					$(".community").html(community);
 
+					$(".hand").html("<div class=\"card\" >\
+									" + data["payload"]["hand"][0]["name"] + " \
+									of \
+									" + data["payload"]["hand"][0]["suit"] + " \
+									</div>\
+									<div class=\"card\" >\
+									" + data["payload"]["hand"][1]["name"] + " \
+									of \
+									" + data["payload"]["hand"][1]["suit"] + " \
+									</div>");
+
+					$(".big").html(data["payload"]["big"]);
+					$(".small").html(data["payload"]["small"]);
+
+					console.log(localStorage.getItem("user_id"));
+					console.log(data["payload"]["next_id"]);
+
+					if (data["payload"]["next_id"] == localStorage.getItem("user_id")) {
+						$(".controls").show();
+					} else {
+						$(".controls").hide();
+					}
+
+					$(".users").html("<tr ><td >player id</td><td >player action</td><td >player bet</td><td >player money</td></tr>");
 					for (var i = 0; i < data["payload"]["user_ids"].length; i++) {
-						console.log(i);
+
 						$(".users").append("<tr >\
 							<td > \
 								" + data["payload"]["user_ids"][i] + "\
@@ -45,4 +71,7 @@ setInterval(function() {
 			console.log(error);
 		}
 	});
-}, 5000);
+}
+
+update_state();
+setInterval(update_state, 5000);
