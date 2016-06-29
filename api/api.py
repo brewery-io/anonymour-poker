@@ -7,6 +7,7 @@ import hashlib
 import os
 import pg_simple as pg
 from random import randint
+from multiprocessing import Process
 
 #########################################################
 #
@@ -25,8 +26,8 @@ urls = (
 	"/room/leave", "room_leave",
 	"/room/status", "room_status",
 
-	"/game/state", "game_state"
-
+	"/game/state", "game_state",
+	"/game/leave", "game_leave"
 )
 
 pg.config_pool(host=conf.db_host, database=conf.db_name, user=conf.db_user, password=conf.db_pass, max_conn=250, expiration=60)
@@ -62,6 +63,10 @@ def get_user(sesh=None, username=None):
 		if sesh is not None:
 
 			user_session = db.fetchone("user_sessions", fields=["user_id"], where=("sesh = %s", [sesh]))
+
+			if user_session is None:
+				return None
+
 			user = db.fetchone("users", where=("id = %s", [user_session[0]]))
 
 		else:
@@ -82,11 +87,19 @@ def deal(used, amount):
 
 	result = []
 
-
 	for i in xrange(amount):
 		result.append(deck.pop(randint(0, len(deck))))
 
 	return result
+
+def autofold(user_id, game_id):
+
+	time.sleep(2)
+
+	with pg.PgSimple() as db:
+
+		game = db.fetchone("games", where=("id = %s", [game_id]))
+
 
 #########################################################
 #
@@ -102,12 +115,14 @@ class game_state:
 
 		try:
 			sesh = data["sesh"].decode("utf-8")
-			state_id = data["game_state"].decode("utf-8")
-			game_id = data["game_id"].decode("utf-8")
+			state_id = int(data["state_id"].decode("utf-8"))
+			game_id = int(data["game_id"].decode("utf-8"))
 		except KeyError:
 			return write({"error": "Data can't be empty. "}, 400)
 		except UnicodeError:
 			return write({"error": "Data must be UTF-8 encoded. "}, 400)
+		except ValueError:
+			return write({"error": "State and game IDs must be integers. "}, 400)
 
 		with pg.PgSimple() as db:
 			game_state = db.fetchone("game_states", where=("game_id = %s", [game_id]))
@@ -126,14 +141,89 @@ class game_state:
 
 				user_ids = game.user_ids.split(",")
 
-				if user.id not in user_ids:
+				if str(user.id) not in user_ids:
 					return write({"error": "You are not in this game. "}, 403)
 
-				# return stuff pertinent to user here !
+				holes = json.loads(game_state.holes)
 
+				hand = holes[str(user.id)]
+
+				return write({"message": "Game state. ",\
+							"id": game_state.id,\
+							"changed": True,\
+							"hand": hand,\
+							"community": json.loads(game_state.community),\
+							"bets": json.loads(game_state.bets),\
+							"money": json.loads(game_state.money),\
+							"pot": game_state.pot,\
+							"big": game_state.big,\
+							"small": game_state.small,\
+							"bets": json.loads(game_state.bets),\
+							"actions": json.loads(game_state.actions),\
+							"next_id": game_state.next_id,\
+							"expiry": str(game_state.expiry),\
+							"user_ids": user_ids}, 200)
 
 			return write({"message": "State hasn't changed. ", "changed": False}, 200)
 
+class game_leave:
+
+	def POST(self):
+
+		new_request(self)
+
+		data = web.input()
+
+		try:
+			sesh = data["sesh"].decode("utf-8")
+			action = data["action"].decode("utf-8")
+			game_id = data["game_id"].decode("utf-8")
+		except KeyError:
+			return write({"error": "Data can't be empty. "}, 400)
+		except UnicodeError:
+			return write({"error": "Data not UTF-8 encoded. "}, 400)
+
+		user = get_user(sesh=sesh)
+
+		with pg.PgSimple() as db:
+
+			game = db.fetchone("games", where=("id = %s", [game_id]))
+			state = db.fetchone("game_states", where=("game_id = %s", [game_id]))
+
+			user_ids = state.user_ids.split(",")
+
+
+			if game.status != "running":
+				return write({"error": "The game has not been found. "}, 404)
+
+			if str(user.id) not in user_ids:
+				return write({"error": "You are not in this game. "}, 403)
+
+			if state.next_id != user.id:
+				return write({"error": "It's not your turn. "}, 403)
+
+			actions = json.loads(state.actions)
+			actions[str(user.id)] = "leave"
+			user_ids.remove(str(user.id))
+
+			if len(user_ids) == 1:
+
+				db.insert("game_states", {
+					"user_ids": ", ".join(user_ids),
+					"state": state.state,
+					"community": state.community,
+					"state": "forfeit",
+					"holes": state.holes, #clean up
+					"big": state.big,
+					"small": state.small,
+					"bets": state.bets,
+					"bets": json.dumps(actions),
+					"pot": state.pot,
+					"round": state.round,
+					
+				});
+
+			if state.turn == len(user_ids):
 
 
 
@@ -245,9 +335,7 @@ class room_join:
 
 					game_id = db.insert("games", {"room_id": room_id, "user_ids": ",".join(str(v) for v in user_ids), "status": "running"}, returning="id")
 
-					to_deal = deal("[]", 3 + room[0].max_players)
-
-					print to_deal
+					to_deal = deal("[]", 3 + 2 * room[0].max_players)
 
 					community = []
 
@@ -255,10 +343,19 @@ class room_join:
 
 					holes = {}
 					money = {}
+					bets = {}
+					actions = {}
 
 					for user_id in user_ids:
-						holes[int(user_id)] = to_deal.pop()
-						money[int(user_id)] = 1000
+						holes[user_id] = [to_deal.pop(), to_deal.pop()]
+						money[user_id] = 1000
+						bets[user_id] = 0
+						actions[user_id] = ""
+
+					money[user_ids[-2]] = 950
+					money[user_ids[-1]] = 975
+					bets[user_ids[-2]] = 50
+					bets[user_ids[-1]] = 25
 
 					game_state = db.insert("game_states", {"game_id": game_id,\
 					 									"user_ids": ",".join(str(v) for v in user_ids),\
@@ -267,15 +364,20 @@ class room_join:
 														"holes": json.dumps(holes),\
 														"big": 50,\
 														"small": 25,\
-														"bets": "{}",\
-														"actions": "{}",\
+														"bets": json.dumps(bets),\
+														"actions": json.dumps(actions),\
 														"pot": 75,\
 														"round": 1,\
-														"turn": "1",\
-														"money": json.dumps(money)}, \
-														returning="id")
+														"turn": 1,\
+														"money": json.dumps(money),\
+														"next_id": user_ids[0],\
+														"played": datetime.datetime.now(),\
+														"expiry": datetime.datetime.now() + datetime.timedelta(seconds=30)}, returning="id")
 
 					db.commit()
+
+					Process(target=autofold, args=(user_ids[0], game_id)).start()
+
 					return write({"message": "Joined room and started game. ", "game_id": game_id, "room_id": room_id, "started": True}, 200)
 					#except Exception:
 					#	return write({"error": "Error joining room. "}, 500)
@@ -375,7 +477,6 @@ class user_login:
 
 		#user = db.where("username", username).get("users")
 		user = get_user(username=username)
-		print user
 
 		if len(user) == 0:
 			return write({"error": "Username not found. "}, 400)
@@ -385,7 +486,7 @@ class user_login:
 				with pg.PgSimple() as db:
 					if db.insert("user_sessions", data={"sesh": sesh, "user_id": user.id}) == 1:
 						db.commit()
-						return write({"message": "Successfully logged in. ", "sesh": sesh}, 200)
+						return write({"message": "Successfully logged in. ", "sesh": sesh, "user_id": user.id}, 200)
 					return write({"error": "Error inserting into database. "}, 500)
 			except:
 				return write({"error": "Error inserting into database. "}, 500)
