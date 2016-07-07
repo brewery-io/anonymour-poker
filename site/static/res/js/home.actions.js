@@ -35,13 +35,8 @@ $(".logout_btn").click(function() {
 			"sesh": localStorage.getItem("sesh")
 		},
 		success: function(data) {
-			if (data["status"] == 200) {
-				console.log(data);
-				localStorage.removeItem("sesh");
-				window.location="/login";
-			} else {
-				console.log(data);
-			}
+			localStorage.removeItem("sesh");
+			window.location="/login";
 		},
 		error: function(error) {
 			console.log(error);
