@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import web
 import time
 import datetime
@@ -102,6 +100,30 @@ def autofold(user_id, game_id):
 
         game = db.fetchone("games", where=("id = %s", [game_id]))
 
+def win(user_id, game_id):
+
+    with pg.PgSimple() as db:
+
+        # db.update("rooms", where=("game_id = %s", [game_id]), fields={"status"})
+
+        game = db.update("games", where=("id = %s", [game_id]), data={"status": "ended"}, returning="room_id")
+        db.update("rooms", where=("id = %s", [game.room_id]), data={"status": "open"})
+
+def endofround(bets, actions, turn):
+
+    if turn % len(bets) == 0:
+
+        ingame = {}
+
+        for userid in bets:
+            if actions[userid] is not "leave" and actions[userid] is not "fold":
+                ingame[userid] = bets[userid]
+
+        if set(ingame) == 1:  # all bets are the same, end of round
+            return true
+
+    return false
+
 
 #########################################################
 #
@@ -141,10 +163,15 @@ class game_state:
                 if game is None:
                     return write({"error": "The game doesn't exist. "}, 404)
 
+                state = db.fetchone("game_states", where=("game_id = %s", [game_id]))
                 user_ids = game.user_ids.split(",")
 
                 if str(user.id) not in user_ids:
                     return write({"error": "You are not in this game. "}, 403)
+
+                if len(user_ids) == 1:
+                    Process(target=autofold, args=(user_ids[0], game_id)).start()
+                    return write({"message:": "You have won this game. "}, 200)
 
                 holes = json.loads(game_state.holes)
 
@@ -194,7 +221,6 @@ class game_leave:
 
             user_ids = state.user_ids.split(",")
 
-
             if game.status != "running":
                 return write({"error": "The game has not been found. "}, 404)
 
@@ -204,10 +230,34 @@ class game_leave:
             if state.next_id != user.id:
                 return write({"error": "It's not your turn. "}, 403)
 
+            print json.loads(state.money)
+            holes = json.loads(state.holes)
+            bets = json.loads(state.holes)
+            money = json.loads(state.holes)
+            actions = json.loads(state.actions)
+            user_ids.remove(str(user.id))
+
+            print user_ids
+
+            holes.pop(str(user.id))
+            bets.pop(str(user.id))
+            money.pop(str(user.id))
+            actions[str(user.id)] = "leave"
+
             if state.turn == len(user_ids):
 
-                # this is the end of the roun
+                # this is the end of the round
                 pass
+
+            else:
+
+                print "insert new state and leave"
+                print holes
+                print bets
+                print money
+                print actions
+                print user_ids
+
 
 #########################################################
 #
