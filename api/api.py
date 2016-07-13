@@ -1,4 +1,4 @@
-import web
+u r import web
 import time
 import datetime
 import json
@@ -109,9 +109,9 @@ def win(user_id, game_id):
         game = db.update("games", where=("id = %s", [game_id]), data={"status": "ended"}, returning="room_id")
         db.update("rooms", where=("id = %s", [game.room_id]), data={"status": "open"})
 
-def endofround(bets, actions, turn):
+def endofstate(bets, actions, next_id, starter):
 
-    if turn % len(bets) == 0:
+    if next_id == starter:
 
         ingame = {}
 
@@ -119,11 +119,16 @@ def endofround(bets, actions, turn):
             if actions[userid] is not "leave" and actions[userid] is not "fold":
                 ingame[userid] = bets[userid]
 
-        if set(ingame) == 1:  # all bets are the same, end of round
-            return true
+        print ingame
 
-    return false
+        if len(set(ingame.values())) == 1:  # all bets are the same, end of round
+            return True
 
+    return False
+
+def finishround(state):
+
+    pass
 
 #########################################################
 #
@@ -191,7 +196,8 @@ class game_state:
                             "actions": json.loads(game_state.actions),\
                             "next_id": game_state.next_id,\
                             "expiry": str(game_state.expiry),\
-                            "user_ids": user_ids}, 200)
+                            "user_ids": user_ids,
+                            "starter": game_state.starter}, 200)
 
             return write({"message": "State hasn't changed. ", "changed": False}, 200)
 
@@ -230,33 +236,39 @@ class game_leave:
             if state.next_id != user.id:
                 return write({"error": "It's not your turn. "}, 403)
 
-            print json.loads(state.money)
             holes = json.loads(state.holes)
-            bets = json.loads(state.holes)
-            money = json.loads(state.holes)
+            bets = json.loads(state.bets)
+            money = json.loads(state.money)
             actions = json.loads(state.actions)
+
+            next_id = user_ids[user_ids.index(str(state.next_id)) + 1]
+
+            print next_id
+
             user_ids.remove(str(user.id))
-
-            print user_ids
-
             holes.pop(str(user.id))
             bets.pop(str(user.id))
             money.pop(str(user.id))
             actions[str(user.id)] = "leave"
 
-            if state.turn == len(user_ids):
+            if endofstate(bets, actions, next_id, state.starter):
 
-                # this is the end of the round
-                pass
+                if state.state == "river":
+
+                    print "do river shit now"
+
+                elif state.state == "turn":
+
+                    state = "river"
+
+                else:
+
+                    state = "turn"
 
             else:
 
                 print "insert new state and leave"
-                print holes
-                print bets
-                print money
-                print actions
-                print user_ids
+                #new_state =
 
 
 #########################################################
@@ -389,7 +401,7 @@ class room_join:
                     bets[user_ids[-1]] = 25
 
                     game_state = db.insert("game_states", {"game_id": game_id,\
-                                                         "user_ids": ",".join(str(v) for v in user_ids),\
+                                                        "user_ids": ",".join(str(v) for v in user_ids),\
                                                         "state": "flop",\
                                                         "community": json.dumps(community),\
                                                         "holes": json.dumps(holes),\
@@ -401,10 +413,11 @@ class room_join:
                                                         "round": 1,\
                                                         "turn": 1,\
                                                         "money": json.dumps(money),\
-                                                        "next_id": user_ids[0],\
+                                                        "next_id": user_ids[1],\
                                                         "played": datetime.datetime.now(),\
-                                                        "expiry": datetime.datetime.now() + datetime.timedelta(seconds=30)}, returning="id")
-
+                                                        "expiry": datetime.datetime.now() + datetime.timedelta(seconds=30),\
+                                                        "starter": user_ids[0]}, returning="id")
+                                        
                     db.commit()
 
                     Process(target=autofold, args=(user_ids[0], game_id)).start()
