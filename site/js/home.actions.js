@@ -27,19 +27,8 @@ $(document).on('click', '.room', function() {
     }
   })
 })
-$('.logout_btn').click(function () {
-  $.ajax({
-    url: 'http://localhost:8080/user/logout',
-    method: 'post',
-    data: {
-      'sesh': localStorage.getItem('sesh')
-    },
-    success: function (data) {
-      localStorage.removeItem('sesh')
-      window.location = '/login'
-    },
-    error: function (error) {
-      console.log(error)
-    }
-  })
+
+$('#logout_btn').click(function () {
+  Cookies.remove('token')
+  window.location.reload()
 })

@@ -1,5 +1,6 @@
 import web
 import os
+import glob
 
 #########################################################
 #
@@ -8,12 +9,32 @@ import os
 #########################################################
 
 urls = (
-    '/', 'Home',
-    '/login', 'Login',
-    '/game', 'Game',
+    '/',        'Index',
+    '/login',   'Login',
+    '/game',    'Game',
 )
 
 base = os.path.dirname(os.path.realpath(__file__))
+
+html = '''
+<!DOCTYPE html >
+<html >
+<head >
+<title >title | %s</title>
+<style >
+%s
+</style>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js" ></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/js-cookie/2.1.4/js.cookie.min.js" ></script>
+</head>
+<body >
+%s
+</body>
+<script >
+%s
+</script>
+</html>
+'''
 
 def write(payload, status):
     payload['status'] = status
@@ -26,14 +47,33 @@ def not_found():
 def new_request():
     web.header('Content-Type', 'text/html')
     web.header('Access-Control-Allow-Origin', '*')
+    web.setcookie('api', 'http://localhost:8080')
 
 
-class Home:
+class Index:
     def GET(self):
+
         new_request()
 
-        with open(os.path.join(base, 'html/home.html'), 'r') as f:
-            return f.read()
+        token = web.cookies().get('token')
+
+        if token is None:
+            page = 'welcome'
+        else:
+            page = 'home'
+
+        with open(os.path.join(base, 'html/%s.html' % page), 'r') as f:
+            body = f.read()
+
+        with open(os.path.join(base, 'css/%s.css' % page), 'r') as f:
+            style = f.read()
+
+        script = ''
+        for fname in glob.glob('js/%s.*.js' % page):
+            with open(os.path.join(base, fname), 'r') as f:
+                script += f.read()
+
+        return html % (page, style, body, script)
 
 class Login:
     def GET(self):

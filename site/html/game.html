@@ -1,67 +1,52 @@
-<!DOCTYPE html >
+<div class="controls" >
+  <input type="bet_amount" placeholder="bet amount" />
+  <button class="bet_btn" >bet</button>
+  <button class="check_btn" >check</button>
+  <button class="fold_btn" >fold</button>
+  <button class="leave_btn" >leave game</button>
+  <div id="timer" >
+    <span class="seconds" ></span>
+  </div>
+</div>
 
-<html >
-  <head >
-    <title >game</title>
-    <script src="/static/res/js/lib/jquery.js" ></script>
-    <script src="/static/res/js/loggedin.js" ></script>
-  </head>
-  <body >
+Community
+<div class="community" >
 
-    <div class="controls" >
-      <input type="bet_amount" placeholder="bet amount" />
-      <button class="bet_btn" >bet</button>
-      <button class="check_btn" >check</button>
-      <button class="fold_btn" >fold</button>
-      <button class="leave_btn" >leave game</button>
-      <div id=".timer" >
-        <span class="seconds" ></span>
-      </div>
-    </div>
+</div>
+<br />
 
-    Community
-    <div class="community" >
+Big blind
+<span class="big" >
 
-    </div>
-    <br />
+</span>
+<br />
 
-    Big blind
-    <span class="big" >
+Small blind
+<span class="small" >
 
-    </span>
-    <br />
+</span>
+<br />
+<br />
 
-    Small blind
-    <span class="small" >
+Your cards
+<div class="hand" >
 
-    </span>
-    <br />
-    <br />
+</div>
+<br />
 
-    Your cards
-    <div class="hand" >
-
-    </div>
-    <br />
-
-    <table class="users" >
-      <tr >
-        <td >
-          player id
-        </td>
-        <td >
-          player action
-        </td>
-        <td >
-          player bet
-        </td>
-        <td >
-          player money
-        </td>
-      </tr>
-    </table>
-
-    <script src="/static/res/js/game.auto.js" ></script>
-    <script src="/static/res/js/game.actions.js" ></script>
-  </body>
-</html>
+<table class="users" >
+  <tr >
+    <td >
+      player id
+    </td>
+    <td >
+      player action
+    </td>
+    <td >
+      player bet
+    </td>
+    <td >
+      player money
+    </td>
+  </tr>
+</table>

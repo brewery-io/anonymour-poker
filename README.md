@@ -1,3 +1,3 @@
-# Anonymous Poker
+# Poker
 
-Source code for crypto currency based poker site. 
+Source code for poker site. 
