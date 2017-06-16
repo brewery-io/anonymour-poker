@@ -3,9 +3,13 @@ class DB:
     dbn = 'postgres'
     db = 'poker'
     user = 'rstapinski'
-    pw = ''
+    pw = 'charleS57z34_S$'
     host = 'localhost'
 
 class API:
 
     url = 'http://localhost:8080'
+
+class Game:
+
+    port = 8090

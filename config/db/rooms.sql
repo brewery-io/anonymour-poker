@@ -30,7 +30,9 @@ CREATE TABLE rooms (
     status text,
     buyin integer,
     type text,
-    seats integer
+    seats integer,
+    pid integer,
+    port integer
 );
 
 
@@ -62,6 +64,14 @@ ALTER SEQUENCE rooms_id_seq OWNED BY rooms.id;
 --
 
 ALTER TABLE ONLY rooms ALTER COLUMN id SET DEFAULT nextval('rooms_id_seq'::regclass);
+
+
+--
+-- Name: rooms rooms_name_key; Type: CONSTRAINT; Schema: public; Owner: rstapinski
+--
+
+ALTER TABLE ONLY rooms
+    ADD CONSTRAINT rooms_name_key UNIQUE (name);
 
 
 --
