@@ -63,7 +63,7 @@ elif cmd == 'nuke_db':
     fnames = [fname for fname in listdir(config_db)]
 
     for fname in fnames:
-        cur.execute('DROP TABLE %s;' % fname)
+        cur.execute('DROP TABLE %s;' % fname[:-4])
 
     con.commit()
     con.close()
