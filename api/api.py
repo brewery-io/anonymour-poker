@@ -1,7 +1,4 @@
 import sys
-
-sys.path.insert(0, '..')
-
 import web
 import json
 import random
@@ -9,7 +6,14 @@ import string
 
 from passlib.hash import pbkdf2_sha256
 
-from config import Config
+sys.path.insert(0, '..')
+from config import config
+
+#########################################################
+#
+#               INITIAL SETTINGS
+#
+#########################################################
 
 urls = (
     '/user/register',   'UserRegister',
@@ -19,12 +23,13 @@ urls = (
 
     '/game/join',       'GameJoin',
 
+    '/room/list',       'RoomList',
+
 )
 
-db = web.database(dbn=Config.dbn, db=Config.db, user=Config.user, pw=Config.pw)
+db = web.database(dbn=config.DB.dbn, db=config.DB.db, user=config.DB.user, pw=config.DB.pw)
 
 def write(payload, status):
-    payload["status"] = status
     return json.dumps({"payload": payload, "status": status})
 
 def not_found():
@@ -34,6 +39,12 @@ def not_found():
 def new_request():
     web.header("Content-Type", "application/json")
     web.header("Access-Control-Allow-Origin", "*")
+
+#########################################################
+#
+#               USER ENDPOINTS
+#
+#########################################################
 
 class UserRegister:
 
@@ -93,6 +104,40 @@ class User:
     def POST(self, uid):
 
         new_request()
+
+class RoomList:
+
+    def POST(self):
+
+        new_request()
+
+        rooms = db.select('rooms')
+        results = []
+
+        games = db.select('games', dict(status='ongoing'), where='status=$status')
+        ongoing = [game.room_id for game in games]
+
+        for room in rooms:
+            result = {}
+            result['id'] = room.id
+            result['name'] = room.name
+            result['type'] = room.type
+            result['seats'] = room.seats
+            result['buyin'] = room.buyin
+            if room.id in ongoing:
+                result['status'] = 'Ongoing'
+            else:
+                result['status'] = room.status
+            results.append(result)
+
+        return write({'rooms': results}, 200)
+
+
+#########################################################
+#
+#               GAME ENDPOINTS
+#
+#########################################################
 
 class GameJoin:
 

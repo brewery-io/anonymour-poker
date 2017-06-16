@@ -26,7 +26,8 @@ SET default_with_oids = false;
 
 CREATE TABLE games (
     id integer NOT NULL,
-    status text
+    status text,
+    room_id integer
 );
 
 
@@ -71,3 +72,4 @@ ALTER TABLE ONLY games
 --
 -- PostgreSQL database dump complete
 --
+

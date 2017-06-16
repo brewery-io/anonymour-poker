@@ -1,6 +1,11 @@
-class Config:
+class DB:
 
-  dbn = 'postgres'
-  db = 'poker'
-  user = ''
-  pw = ''
+    dbn = 'postgres'
+    db = 'poker'
+    user = 'rstapinski'
+    pw = ''
+    host = 'localhost'
+
+class API:
+
+    url = 'http://localhost:8080'

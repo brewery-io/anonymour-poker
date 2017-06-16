@@ -1,12 +1,17 @@
 import web
 import os
 import glob
+import sys
+
+sys.path.insert(0, '..')
+from config import config
 
 #########################################################
 #
 #               INITIAL SETTINGS
 #
 #########################################################
+
 
 urls = (
     '/',        'Index',
@@ -47,8 +52,13 @@ def not_found():
 def new_request():
     web.header('Content-Type', 'text/html')
     web.header('Access-Control-Allow-Origin', '*')
-    web.setcookie('api', 'http://localhost:8080')
+    web.setcookie('api', config.API.url)
 
+#########################################################
+#
+#               ROUTES
+#
+#########################################################
 
 class Index:
     def GET(self):
@@ -74,13 +84,6 @@ class Index:
                 script += f.read()
 
         return html % (page, style, body, script)
-
-class Login:
-    def GET(self):
-        new_request()
-        page = 'login'
-        with open('%s/static/login.html' % base, 'r') as f:
-            return f.read()
 
 class Game:
     def GET(self):
