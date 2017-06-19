@@ -3,7 +3,7 @@ class DB:
     dbn = 'postgres'
     db = 'poker'
     user = 'rstapinski'
-    pw = 'charleS57z34_S$'
+    pw = ''
     host = 'localhost'
 
 class API:
@@ -13,3 +13,7 @@ class API:
 class Game:
 
     port = 8090
+
+class Routes:
+
+    port = 8000

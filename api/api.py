@@ -150,3 +150,10 @@ if __name__ == '__main__':
     app = web.application(urls, globals())
     app.notfound = not_found
     app.run()
+
+def start():
+
+    sys.argv[1] = config.API.port
+    app = web.application(urls, globals())
+    app.notfound = not_found
+    app.run()

@@ -3,7 +3,7 @@ import os
 import glob
 import sys
 
-sys.path.insert(0, '..')
+# sys.path.insert(0, '..')
 from config import config
 
 #########################################################
@@ -79,7 +79,7 @@ class Index:
             style = f.read()
 
         script = ''
-        for fname in glob.glob('js/%s.*.js' % page):
+        for fname in glob.glob(os.path.join(base, 'js/%s.*.js' % page)):
             with open(os.path.join(base, fname), 'r') as f:
                 script += f.read()
 
@@ -99,6 +99,12 @@ class Game:
 #########################################################
 
 if __name__ == '__main__':
+    app = web.application(urls, globals())
+    app.notfound = not_found
+    app.run()
+
+def start():
+    sys.argv[1] = config.Routes.port
     app = web.application(urls, globals())
     app.notfound = not_found
     app.run()

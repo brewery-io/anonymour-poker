@@ -6,6 +6,9 @@ from os.path import join
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT, ISOLATION_LEVEL_DEFAULT
 import subprocess
+from passlib.hash import pbkdf2_sha256
+from routes import routes
+from api import api
 
 def usage():
 
@@ -33,16 +36,14 @@ def usage():
 
 cmd = sys.argv[1]
 
-if cmd == 'create_db':
-
+def create_db():
     con = psycopg2.connect(dbname='postgres', user=config.DB.user, host=config.DB.host, password=config.DB.pw)
     con.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
     cur = con.cursor()
     cur.execute('CREATE DATABASE %s;' % config.DB.db)
     con.close()
 
-elif cmd == 'setup_db':
-
+def setup_db():
     config_db = 'config/db'
 
     con = psycopg2.connect(dbname=config.DB.db, user=config.DB.user, host=config.DB.host, password=config.DB.pw)
@@ -58,8 +59,7 @@ elif cmd == 'setup_db':
     con.commit()
     con.close()
 
-elif cmd == 'nuke_db':
-
+def nuke_db():
     config_db = 'config/db'
 
     con = psycopg2.connect(dbname=config.DB.db, user=config.DB.user, host=config.DB.host, password=config.DB.pw)
@@ -74,20 +74,14 @@ elif cmd == 'nuke_db':
     con.commit()
     con.close()
 
-elif cmd == 'drop_db':
-
+def drop_db():
     con = psycopg2.connect(dbname='postgres', user=config.DB.user, host=config.DB.host, password=config.DB.pw)
     con.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
     cur = con.cursor()
     cur.execute('DROP DATABASE %s;' % config.DB.db)
     con.close()
 
-elif cmd == 'create_room':
-
-    name = sys.argv[2]
-    buyin = sys.argv[3]
-    seats = sys.argv[4]
-    t = sys.argv[5]
+def create_room(name, buyin, seats, t):
 
     con = psycopg2.connect(dbname=config.DB.db, user=config.DB.user, host=config.DB.host, password=config.DB.pw)
     con.set_isolation_level(ISOLATION_LEVEL_DEFAULT)
@@ -98,10 +92,7 @@ elif cmd == 'create_room':
     con.commit()
     con.close()
 
-elif cmd == 'close_room':
-
-    name = sys.argv[2]
-
+def close_room(name):
     con = psycopg2.connect(dbname=config.DB.db, user=config.DB.user, host=config.DB.host, password=config.DB.pw)
     con.set_isolation_level(ISOLATION_LEVEL_DEFAULT)
     cur = con.cursor()
@@ -111,10 +102,7 @@ elif cmd == 'close_room':
     con.commit()
     con.close()
 
-elif cmd == 'close_game':
-
-    name = sys.argv[2]
-
+def close_game(name):
     con = psycopg2.connect(dbname=config.DB.db, user=config.DB.user, host=config.DB.host, password=config.DB.pw)
     cur = con.cursor()
     con.set_isolation_level(ISOLATION_LEVEL_DEFAULT)
@@ -132,10 +120,7 @@ elif cmd == 'close_game':
     con.commit()
     con.close()
 
-elif cmd == 'open_room':
-
-    name = sys.argv[2]
-
+def open_room(name):
     con = psycopg2.connect(dbname=config.DB.db, user=config.DB.user, host=config.DB.host, password=config.DB.pw)
     con.set_isolation_level(ISOLATION_LEVEL_DEFAULT)
     cur = con.cursor()
@@ -153,6 +138,77 @@ elif cmd == 'open_room':
 
     con.commit()
     con.close()
+
+def create_user(username, password):
+
+    password = pbkdf2_sha256.hash(password)
+
+    con = psycopg2.connect(dbname=config.DB.db, user=config.DB.user, host=config.DB.host, password=config.DB.pw)
+    con.set_isolation_level(ISOLATION_LEVEL_DEFAULT)
+    cur = con.cursor()
+
+    cur.execute("INSERT INTO users (username, password) VALUES ('%s', '%s')" % (username, password))
+
+    con.commit()
+    con.close()
+
+
+if cmd == 'create_db':
+    create_db()
+
+elif cmd == 'setup_db':
+    setup_db()
+
+elif cmd == 'nuke_db':
+    nuke_db()
+
+elif cmd == 'drop_db':
+    drop_db()
+
+elif cmd == 'create_room':
+
+    name = sys.argv[2]
+    buyin = sys.argv[3]
+    seats = sys.argv[4]
+    t = sys.argv[5]
+    create_room(name, buying, seats, t)
+
+elif cmd == 'close_room':
+
+    name = sys.argv[2]
+    close_room(name)
+
+elif cmd == 'close_game':
+
+    name = sys.argv[2]
+    close_game(name)
+
+elif cmd == 'open_room':
+
+    name = sys.argv[2]
+    open_room(name)
+
+elif cmd == 'create_user':
+
+    username = sys.argv[2]
+    password = sys.argv[3]
+    create_user(username, password)
+
+elif cmd == 'run_routes':
+    routes.start()
+
+elif cmd == 'run_api':
+    api.start()
+
+elif cmd == 'init':
+    drop_db()
+    create_db()
+    setup_db()
+    create_room('Room One', 3, 8, 'Winner Takes All')
+    create_room('Room Two', 2, 2, 'Winner Takes All')
+    create_user('user', 'pass')
+    create_user('user2', 'pass')
+
 
 else:
     usage()
