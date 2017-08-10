@@ -19,27 +19,8 @@ urls = (
     '/game',    'Game',
 )
 
-base = os.path.dirname(os.path.realpath(__file__))
-
-html = '''
-<!DOCTYPE html >
-<html >
-<head >
-<title >title | %s</title>
-<style >
-%s
-</style>
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js" ></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/js-cookie/2.1.4/js.cookie.min.js" ></script>
-</head>
-<body >
-%s
-</body>
-<script >
-%s
-</script>
-</html>
-'''
+class Data:
+    pass
 
 def write(payload, status):
     payload['status'] = status
@@ -53,6 +34,8 @@ def new_request():
     web.header('Content-Type', 'text/html')
     web.header('Access-Control-Allow-Origin', '*')
     web.setcookie('api', config.API.url)
+
+render = web.template.render('routes/templates/', base='layout')
 
 #########################################################
 #
@@ -68,22 +51,11 @@ class Index:
         token = web.cookies().get('token')
 
         if token is None:
-            page = 'welcome'
+            data = Data
+            data.title = 'Welcome'
+            return render.welcome(data)
         else:
             page = 'home'
-
-        with open(os.path.join(base, 'html/%s.html' % page), 'r') as f:
-            body = f.read()
-
-        with open(os.path.join(base, 'css/%s.css' % page), 'r') as f:
-            style = f.read()
-
-        script = ''
-        for fname in glob.glob(os.path.join(base, 'js/%s.*.js' % page)):
-            with open(os.path.join(base, fname), 'r') as f:
-                script += f.read()
-
-        return html % (page, style, body, script)
 
 class Game:
     def GET(self):

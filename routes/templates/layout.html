@@ -1,0 +1,12 @@
+$def with (content)
+<!DOCTYPE html>
+<html >
+  <head >
+    <title >$content.title</title>
+    <link rel="stylesheet" href="/static/css/$content.css" />
+  </head>
+  <body >
+    $:content
+  </body>
+  <script src="/static/js/$content.script" ></script>
+</html>
