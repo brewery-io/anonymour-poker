@@ -1,19 +1,19 @@
-class DB:
-
-    dbn = 'postgres'
-    db = 'poker'
-    user = 'rstapinski'
-    pw = ''
-    host = 'localhost'
-
-class API:
-
-    url = 'http://localhost:8080'
-
-class Game:
-
-    port = 8090
-
-class Routes:
-
-    port = 8000
+{
+  "DB": {
+    "dbn": "postgres",
+    "db": "poker",
+    "user": "rstapinski",
+    "pw": "",
+    "host": "localhost"
+  },
+  "API": {
+    "port": 8080,
+    "url": "http://localhost"
+  },
+  "Routes": {
+    "port": 8000
+  },
+  "Game": {
+    "port": 4020
+  }
+}
