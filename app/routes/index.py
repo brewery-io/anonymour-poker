@@ -1,6 +1,8 @@
+import web
 import helpers as Help
 
 class Index:
+
     def GET(self):
 
         Help.Request.new_route()
@@ -9,7 +11,9 @@ class Index:
 
         print Help.Token.is_valid(token)
 
-        if token is None:
-            return render.welcome()
+        render = web.template.render('templates')
+
+        if not Help.Token.is_valid(token):
+            return Help.Render.home()
         else:
-            return render.home(data)
+            return Help.Render.welcome()

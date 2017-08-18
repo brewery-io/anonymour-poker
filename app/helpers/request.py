@@ -7,4 +7,5 @@ class Request:
     def new_route():
         web.header('Content-Type', 'text/html')
         web.header('Access-Control-Allow-Origin', '*')
-        web.setcookie('api', Help.Config.API.url)
+        if web.cookies().get('api') is None:
+            web.setcookie('api', Help.Config.get()['api']['url'])
