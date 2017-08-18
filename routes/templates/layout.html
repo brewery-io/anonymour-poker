@@ -1,12 +1,14 @@
 $def with (content)
-<!DOCTYPE html>
+<!DOCTYPE html >
 <html >
   <head >
     <title >$content.title</title>
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js" ></script>
     <link rel="stylesheet" href="/static/css/$content.css" />
   </head>
   <body >
     $:content
   </body>
-  <script src="/static/js/$content.script" ></script>
+  $for script in content.scripts.split():
+    <script src="/static/js/$script" ></script>
 </html>

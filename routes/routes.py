@@ -3,7 +3,7 @@ import os
 import glob
 import sys
 
-# sys.path.insert(0, '..')
+sys.path.insert(0, '..')
 from config import config
 
 #########################################################
@@ -35,7 +35,7 @@ def new_request():
     web.header('Access-Control-Allow-Origin', '*')
     web.setcookie('api', config.API.url)
 
-render = web.template.render('routes/templates/', base='layout')
+render = web.template.render('templates/', base='layout')
 
 #########################################################
 #
@@ -51,8 +51,6 @@ class Index:
         token = web.cookies().get('token')
 
         if token is None:
-            data = Data
-            data.title = 'Welcome'
             return render.welcome(data)
         else:
             page = 'home'
